@@ -16,7 +16,7 @@ we display tensor array for debugging and understanding the data.(tracking its p
 
 the crucial part here is, we convert the tensor to numpy array. AND save numpy array to a file.
 
-and there you have it. obj. detection in ~50 lines of code.
+and there you have it. obj. detection in ~20 lines of code.
 
 ![000000000025](https://github.com/le-nicolas/Basic-but-semi-advance-object-detection/assets/112614851/14eeacd1-4300-4a0c-a1d4-829f3708eddc)
 ![000000000030](https://github.com/le-nicolas/Basic-but-semi-advance-object-detection/assets/112614851/624b6f79-f43f-4f7e-a51c-efcc32bf0010)
