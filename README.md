@@ -1,4 +1,4 @@
-# Basic-but-semi-advance-object-detection
+# Basic but semi-advance object detection
 I hardly believe nowadays, how advance we are now. Just by less than ~50 lines of code, you can generate a respectable confidence interaval.
 
 ![000000000009](https://github.com/le-nicolas/Basic-but-semi-advance-object-detection/assets/112614851/8d952c34-63e6-4f81-b02e-404e14020982)
