@@ -1,7 +1,7 @@
 #load a pretrained model
 model = YOLO('yolov8n.pt', "v8")
 
-#predict on an image
+#predict on an image with coco8 dataset
 detection_output = model.predict(source="datasets/coco8/imagesz/000000000025.jpg", conf=0.25, save=True)
 
 #display tensor array
