@@ -13,7 +13,6 @@ print(type(detection_output[0])) # The type() function in Python returns the dat
 print(detection_output[0].shape) # shape attribute is typically used with numpy arrays or PyTorch tensors to get the dimensions of the array or tensor.
 #ensure that your data has the correct number of dimensions and size in each dimension.
 
-
 #display numpy array
 print(numpy_output) # some summary statistics.
 
