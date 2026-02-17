@@ -2,11 +2,22 @@
 
 Computer vision project that tracks detected objects in video and predicts near-future trajectory from recent motion.
 
+## Visual Preview
+
+### Surreal Mode (default)
+
+![Surreal overlay preview](assets/surreal-overlay-preview.svg)
+
+### Classic Mode
+
+![Classic overlay preview](assets/classic-overlay-preview.svg)
+
 ## Features
 
 - Detector-based tracking with YOLO + ByteTrack
 - Stable track IDs and automatic target selection
 - Target switching at runtime (`n`)
+- Two overlay styles: `surreal` (default) and `classic`
 - Optional class filtering (`--target-class person`)
 - Real-time path overlay for observed trajectory
 - Future-point prediction using polynomial regression on recent motion
@@ -33,11 +44,18 @@ python trajectory_tracker.py --source 0
 python trajectory_tracker.py --source ./sample.mp4 --target-class person
 ```
 
+5. Force classic overlay style if you prefer the old look:
+
+```bash
+python trajectory_tracker.py --source 0 --visual-mode classic
+```
+
 ## Controls
 
 - `q`: quit
 - `n`: cycle to next visible track id
 - `c`: clear current selection (auto-select resumes)
+- `v`: toggle overlay style (`surreal` <-> `classic`)
 
 ## Notes
 

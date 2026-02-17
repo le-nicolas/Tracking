@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import math
 import time
 from dataclasses import dataclass
 from typing import Deque, Dict, Iterable, List, Optional, Sequence, Tuple, Union
@@ -159,6 +160,12 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Ultralytics device (examples: cpu, 0).",
     )
+    parser.add_argument(
+        "--visual-mode",
+        default="surreal",
+        choices=("surreal", "classic"),
+        help="Overlay style. 'surreal' is intentionally unconventional.",
+    )
     return parser.parse_args()
 
 
@@ -260,7 +267,302 @@ def estimate_speed(samples: Iterable[MotionSample]) -> Optional[float]:
     return float(np.hypot(dx, dy) / dt)
 
 
+def clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def blend_bgr(a: Tuple[int, int, int], b: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+    t = float(clamp(t, 0.0, 1.0))
+    return (
+        int(round(a[0] + (b[0] - a[0]) * t)),
+        int(round(a[1] + (b[1] - a[1]) * t)),
+        int(round(a[2] + (b[2] - a[2]) * t)),
+    )
+
+
+def color_for_track(track_id: int, active: bool = False) -> Tuple[int, int, int]:
+    seed = (track_id * 1103515245 + 12345) & 0x7FFFFFFF
+    hue = seed % 180
+    sat = 170 if active else 145
+    val = 250 if active else 220
+    hsv = np.uint8([[[hue, sat, val]]])
+    bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0, 0]
+    return int(bgr[0]), int(bgr[1]), int(bgr[2])
+
+
+def draw_corner_brackets(
+    image: np.ndarray,
+    box: Tuple[int, int, int, int],
+    color: Tuple[int, int, int],
+    thickness: int,
+) -> None:
+    x1, y1, x2, y2 = box
+    width = max(1, x2 - x1)
+    height = max(1, y2 - y1)
+    corner = max(10, min(34, int(min(width, height) * 0.28)))
+
+    cv2.line(image, (x1, y1), (x1 + corner, y1), color, thickness, cv2.LINE_AA)
+    cv2.line(image, (x1, y1), (x1, y1 + corner), color, thickness, cv2.LINE_AA)
+
+    cv2.line(image, (x2, y1), (x2 - corner, y1), color, thickness, cv2.LINE_AA)
+    cv2.line(image, (x2, y1), (x2, y1 + corner), color, thickness, cv2.LINE_AA)
+
+    cv2.line(image, (x1, y2), (x1 + corner, y2), color, thickness, cv2.LINE_AA)
+    cv2.line(image, (x1, y2), (x1, y2 - corner), color, thickness, cv2.LINE_AA)
+
+    cv2.line(image, (x2, y2), (x2 - corner, y2), color, thickness, cv2.LINE_AA)
+    cv2.line(image, (x2, y2), (x2, y2 - corner), color, thickness, cv2.LINE_AA)
+
+
+def draw_prediction_glyph(
+    layer: np.ndarray,
+    point: Tuple[int, int],
+    color: Tuple[int, int, int],
+    scale: int,
+) -> None:
+    px, py = point
+    scale = max(2, scale)
+    glyph = np.array(
+        [
+            [px, py - scale],
+            [px + scale, py],
+            [px, py + scale],
+            [px - scale, py],
+        ],
+        dtype=np.int32,
+    )
+    cv2.polylines(layer, [glyph], True, color, 1, cv2.LINE_AA)
+    cv2.circle(layer, (px, py), max(1, scale // 2), color, -1, cv2.LINE_AA)
+
+
+def draw_speed_meter(
+    frame: np.ndarray,
+    fps: float,
+    speed: Optional[float],
+    selected_id: Optional[int],
+    visible_count: int,
+    visual_mode: str,
+) -> None:
+    h, _w = frame.shape[:2]
+    panel_h = 146
+    panel_w = 274
+    origin = (16, h - panel_h - 16)
+
+    overlay = frame.copy()
+    cv2.rectangle(
+        overlay,
+        origin,
+        (origin[0] + panel_w, origin[1] + panel_h),
+        (24, 21, 18),
+        -1,
+    )
+    cv2.addWeighted(overlay, 0.28, frame, 0.72, 0, dst=frame)
+    cv2.rectangle(
+        frame,
+        origin,
+        (origin[0] + panel_w, origin[1] + panel_h),
+        (92, 141, 209),
+        1,
+        cv2.LINE_AA,
+    )
+
+    # Vertical bars intentionally offset for a non-standard HUD rhythm.
+    speed_value = 0.0 if speed is None else float(speed)
+    fps_bar = int(clamp(fps / 75.0, 0.0, 1.0) * 88)
+    speed_bar = int(clamp(speed_value / 520.0, 0.0, 1.0) * 88)
+    bx = origin[0] + 16
+    by = origin[1] + 116
+    cv2.rectangle(frame, (bx, by - 88), (bx + 22, by), (58, 58, 58), 1)
+    cv2.rectangle(frame, (bx + 32, by - 88), (bx + 54, by), (58, 58, 58), 1)
+    cv2.rectangle(frame, (bx + 3, by - fps_bar), (bx + 19, by), (247, 198, 86), -1)
+    cv2.rectangle(frame, (bx + 35, by - speed_bar), (bx + 51, by), (110, 221, 243), -1)
+
+    text_color = (224, 232, 240)
+    accent = (176, 206, 255)
+    cv2.putText(frame, "FPS", (bx - 1, by + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.44, text_color, 1, cv2.LINE_AA)
+    cv2.putText(frame, "SPD", (bx + 29, by + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.44, text_color, 1, cv2.LINE_AA)
+    cv2.putText(
+        frame,
+        f"mode:{visual_mode}",
+        (origin[0] + 80, origin[1] + 28),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        accent,
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        f"tracks:{visible_count}",
+        (origin[0] + 80, origin[1] + 54),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.52,
+        text_color,
+        1,
+        cv2.LINE_AA,
+    )
+    selected_text = "none" if selected_id is None else str(selected_id)
+    cv2.putText(
+        frame,
+        f"selected:{selected_text}",
+        (origin[0] + 80, origin[1] + 80),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.52,
+        text_color,
+        1,
+        cv2.LINE_AA,
+    )
+    speed_text = "n/a" if speed is None else f"{speed:.1f}px/s"
+    cv2.putText(
+        frame,
+        f"velocity:{speed_text}",
+        (origin[0] + 80, origin[1] + 106),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.48,
+        text_color,
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        frame,
+        "keys: q quit  n next  c clear  v mode",
+        (origin[0] + 12, origin[1] + panel_h - 12),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.44,
+        (164, 179, 196),
+        1,
+        cv2.LINE_AA,
+    )
+
+
 def draw_overlay(
+    frame: np.ndarray,
+    detections: Sequence[Detection],
+    trails: Dict[int, Deque[MotionSample]],
+    selected_id: Optional[int],
+    prediction: Sequence[Tuple[int, int]],
+    fps: float,
+    visual_mode: str,
+    now: float,
+) -> None:
+    if visual_mode == "classic":
+        draw_overlay_classic(frame, detections, trails, selected_id, prediction, fps=fps)
+        return
+    draw_overlay_surreal(frame, detections, trails, selected_id, prediction, fps=fps, now=now)
+
+
+def draw_overlay_surreal(
+    frame: np.ndarray,
+    detections: Sequence[Detection],
+    trails: Dict[int, Deque[MotionSample]],
+    selected_id: Optional[int],
+    prediction: Sequence[Tuple[int, int]],
+    fps: float,
+    now: float,
+) -> None:
+    h, w = frame.shape[:2]
+    tint = np.full_like(frame, (16, 22, 30))
+    cv2.addWeighted(frame, 0.83, tint, 0.17, 0, dst=frame)
+
+    layer = np.zeros_like(frame)
+
+    scan_step = 26
+    drift = int((now * 40) % scan_step)
+    for y in range(-drift, h, scan_step):
+        cv2.line(layer, (0, y), (w, y), (22, 18, 14), 1, cv2.LINE_AA)
+
+    for detection in detections:
+        active = detection.track_id == selected_id
+        color = color_for_track(detection.track_id, active=active)
+        x1, y1, x2, y2 = detection.box_xyxy
+
+        draw_corner_brackets(layer, (x1, y1, x2, y2), color, 2 if active else 1)
+        cx, cy = int(detection.center[0]), int(detection.center[1])
+        base_radius = int(clamp(math.sqrt(max(1.0, detection.area)) * 0.1, 9, 56))
+        cv2.circle(layer, (cx, cy), base_radius, color, 1, cv2.LINE_AA)
+        if active:
+            pulse = int(6 + 6 * (math.sin(now * 4.2) * 0.5 + 0.5))
+            cv2.circle(layer, (cx, cy), base_radius + pulse, color, 2, cv2.LINE_AA)
+            cv2.line(layer, (cx - 12, cy), (cx + 12, cy), color, 1, cv2.LINE_AA)
+            cv2.line(layer, (cx, cy - 12), (cx, cy + 12), color, 1, cv2.LINE_AA)
+
+        label = (
+            f"#{detection.track_id} {detection.class_name} {detection.confidence:.2f}"
+            if active
+            else f"#{detection.track_id}:{detection.class_name}"
+        )
+        offset = 16 if detection.track_id % 2 == 0 else -168
+        tx = int(clamp(x1 + offset, 6, w - 188))
+        ty = int(clamp(y1 - 10 if y1 > 28 else y2 + 18, 22, h - 10))
+        cv2.putText(
+            layer,
+            label,
+            (tx, ty),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.46,
+            color,
+            1,
+            cv2.LINE_AA,
+        )
+
+    speed: Optional[float] = None
+    if selected_id is not None and selected_id in trails:
+        selected_trail = list(trails[selected_id])
+        speed = estimate_speed(selected_trail)
+        points = np.array([(int(item.x), int(item.y)) for item in selected_trail], dtype=np.int32)
+
+        if len(points) >= 2:
+            trail_color = color_for_track(selected_id, active=True)
+            for idx in range(1, len(points)):
+                t = idx / max(1, len(points) - 1)
+                seg_color = blend_bgr((58, 73, 94), trail_color, t)
+                thickness = 1 + int(round(t * 3))
+                cv2.line(
+                    layer,
+                    tuple(points[idx - 1]),
+                    tuple(points[idx]),
+                    seg_color,
+                    thickness,
+                    cv2.LINE_AA,
+                )
+
+            head = tuple(points[-1])
+            orbit_base = int(clamp((0.0 if speed is None else speed) * 0.04, 16, 64))
+            for ring in range(3):
+                radius = orbit_base + ring * 14
+                start = int((now * 90 + ring * 120) % 360)
+                cv2.ellipse(
+                    layer,
+                    head,
+                    (radius, radius),
+                    0,
+                    start,
+                    start + 230,
+                    trail_color,
+                    1,
+                    cv2.LINE_AA,
+                )
+            cv2.circle(layer, head, 5, trail_color, -1, cv2.LINE_AA)
+
+            for idx, point in enumerate(prediction):
+                if idx % 2 == 1 and idx != len(prediction) - 1:
+                    continue
+                t = idx / max(1, len(prediction) - 1)
+                glyph_color = blend_bgr(trail_color, (255, 255, 255), 0.18 + 0.5 * t)
+                glyph_size = 3 + int(round(t * 4))
+                draw_prediction_glyph(layer, (int(point[0]), int(point[1])), glyph_color, glyph_size)
+    cv2.addWeighted(frame, 1.0, layer, 0.82, 0, dst=frame)
+    draw_speed_meter(
+        frame,
+        fps=fps,
+        speed=speed,
+        selected_id=selected_id,
+        visible_count=len(detections),
+        visual_mode="surreal",
+    )
+
+
+def draw_overlay_classic(
     frame: np.ndarray,
     detections: Sequence[Detection],
     trails: Dict[int, Deque[MotionSample]],
@@ -309,28 +611,17 @@ def draw_overlay(
                     cv2.circle(frame, (int(px), int(py)), 3, (52, 73, 235), -1, cv2.LINE_AA)
 
         speed = estimate_speed(selected_trail)
-        speed_text = "Speed: n/a" if speed is None else f"Speed: {speed:.1f} px/s"
     else:
-        speed_text = "Speed: n/a"
+        speed = None
 
-    selected_text = "Selected: none" if selected_id is None else f"Selected track id: {selected_id}"
-    hud = [
-        "q: quit  n: next target  c: clear selection",
-        selected_text,
-        speed_text,
-        f"FPS: {fps:.1f}",
-    ]
-    for idx, text in enumerate(hud):
-        cv2.putText(
-            frame,
-            text,
-            (14, 28 + idx * 28),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.63,
-            (30, 30, 30),
-            2,
-            cv2.LINE_AA,
-        )
+    draw_speed_meter(
+        frame,
+        fps=fps,
+        speed=speed,
+        selected_id=selected_id,
+        visible_count=len(detections),
+        visual_mode="classic",
+    )
 
 
 def main() -> None:
@@ -354,6 +645,7 @@ def main() -> None:
     fps_smooth = 0.0
     prev_frame_time = time.perf_counter()
 
+    visual_mode = args.visual_mode
     cv2.namedWindow("Trajectory Tracker", cv2.WINDOW_NORMAL)
 
     while True:
@@ -411,7 +703,16 @@ def main() -> None:
         selected_trail = list(trails[selected_id]) if selected_id is not None and selected_id in trails else []
         prediction = predictor.predict(selected_trail, steps=args.predict_steps)
 
-        draw_overlay(frame, detections, trails, selected_id, prediction, fps=fps_smooth)
+        draw_overlay(
+            frame,
+            detections,
+            trails,
+            selected_id,
+            prediction,
+            fps=fps_smooth,
+            visual_mode=visual_mode,
+            now=now,
+        )
         cv2.imshow("Trajectory Tracker", frame)
 
         key = cv2.waitKey(1) & 0xFF
@@ -423,6 +724,8 @@ def main() -> None:
         if key == ord("c"):
             selected_id = None
             lost_since = None
+        if key == ord("v"):
+            visual_mode = "classic" if visual_mode == "surreal" else "surreal"
 
     capture.release()
     cv2.destroyAllWindows()

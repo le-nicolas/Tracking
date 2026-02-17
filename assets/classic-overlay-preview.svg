@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Classic Overlay Preview</title>
+  <desc id="desc">Generated conceptual preview of classic bounding boxes and path forecast.</desc>
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a242f"/>
+      <stop offset="100%" stop-color="#2c3541"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="675" fill="url(#bg2)"/>
+  <rect x="140" y="150" width="340" height="260" fill="none" stroke="#8c8c8c" stroke-width="2"/>
+  <rect x="620" y="180" width="300" height="230" fill="none" stroke="#2bd479" stroke-width="3"/>
+
+  <polyline points="680,350 700,330 726,316 755,302 783,290 811,279 840,270" fill="none" stroke="#2bd479" stroke-width="4"/>
+  <circle cx="840" cy="270" r="8" fill="#2bd479"/>
+
+  <polyline points="840,270 878,252 916,238 954,228 992,220 1030,214" fill="none" stroke="#3954eb" stroke-width="4"/>
+  <circle cx="916" cy="238" r="5" fill="#3954eb"/>
+  <circle cx="992" cy="220" r="6" fill="#3954eb"/>
+  <circle cx="1030" cy="214" r="7" fill="#3954eb"/>
+
+  <rect x="36" y="34" width="520" height="128" fill="#ffffff" fill-opacity="0.1" stroke="#cfd7e3" stroke-width="1"/>
+  <text x="52" y="72" fill="#f0f4f8" font-family="Consolas, monospace" font-size="22">q: quit  n: next target  c: clear selection</text>
+  <text x="52" y="104" fill="#f0f4f8" font-family="Consolas, monospace" font-size="20">Selected track id: 3</text>
+  <text x="52" y="134" fill="#f0f4f8" font-family="Consolas, monospace" font-size="20">Speed: 92.7 px/s   FPS: 29.8</text>
+
+  <text x="760" y="78" fill="#f2f6fa" font-family="Consolas, monospace" font-size="30">Trajectory Tracker</text>
+  <text x="760" y="112" fill="#b3c1d0" font-family="Consolas, monospace" font-size="20">Generated Classic Overlay Preview</text>
+</svg>
