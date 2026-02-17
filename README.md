@@ -1,6 +1,6 @@
-# Tracking
+# Basic but Semi-Advance Object Detection
 
-Computer vision project that tracks detected objects in video and predicts near-future trajectory from recent motion.
+This project now runs detector-based trajectory tracking with short-horizon motion prediction.
 
 ## Visual Preview
 
@@ -44,7 +44,7 @@ python trajectory_tracker.py --source 0
 python trajectory_tracker.py --source ./sample.mp4 --target-class person
 ```
 
-5. Force classic overlay style if you prefer the old look:
+5. Force classic overlay style:
 
 ```bash
 python trajectory_tracker.py --source 0 --visual-mode classic
