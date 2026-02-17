@@ -2,6 +2,10 @@
 
 This project now runs detector-based trajectory tracking with short-horizon motion prediction.
 
+## Live Output Sample
+
+![Trajectory tracker sample output](assets/result-sample.png)
+
 ## Visual Preview
 
 ### Surreal Mode (default)
