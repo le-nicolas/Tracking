@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tracking | Pulse Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Sora:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+  <header class="hero">
+    <p class="eyebrow">Tracking</p>
+    <h1>Pulse Board</h1>
+    <p class="subtitle">Capture progress daily, spot patterns fast, and export your timeline any time.</p>
+  </header>
+
+  <main class="layout">
+    <section class="panel compose-panel" aria-label="Add tracking entry">
+      <h2>Add entry</h2>
+      <form id="entryForm" class="entry-form">
+        <label>
+          Date
+          <input id="dateInput" name="date" type="date" required>
+        </label>
+        <label>
+          Category
+          <select id="categoryInput" name="category">
+            <option value="Work">Work</option>
+            <option value="Health">Health</option>
+            <option value="Study">Study</option>
+            <option value="Finance">Finance</option>
+            <option value="Personal">Personal</option>
+          </select>
+        </label>
+        <label>
+          Label
+          <input id="labelInput" name="label" type="text" maxlength="60" placeholder="e.g., Deep work" required>
+        </label>
+        <label>
+          Value
+          <input id="valueInput" name="value" type="number" min="0" step="0.01" placeholder="0.00" required>
+        </label>
+        <label>
+          Unit
+          <input id="unitInput" name="unit" type="text" maxlength="15" placeholder="hours, km, pages">
+        </label>
+        <label>
+          Notes
+          <textarea id="notesInput" name="notes" maxlength="220" placeholder="Optional context"></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Save entry</button>
+      </form>
+    </section>
+
+    <section class="panel dashboard-panel" aria-label="Tracking dashboard">
+      <div class="toolbar">
+        <h2>Timeline</h2>
+        <div class="actions">
+          <button id="exportCsvBtn" type="button" class="btn">Export CSV</button>
+          <button id="clearAllBtn" type="button" class="btn btn-danger">Clear all</button>
+        </div>
+      </div>
+
+      <div class="stats" id="stats">
+        <article class="stat">
+          <p class="stat-label">Entries</p>
+          <p class="stat-value" id="entriesStat">0</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Total value</p>
+          <p class="stat-value" id="valueStat">0</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Top category</p>
+          <p class="stat-value" id="categoryStat">-</p>
+        </article>
+        <article class="stat">
+          <p class="stat-label">Streak</p>
+          <p class="stat-value" id="streakStat">0 days</p>
+        </article>
+      </div>
+
+      <div class="filters">
+        <label>
+          Category
+          <select id="filterCategory">
+            <option value="all">All</option>
+            <option value="Work">Work</option>
+            <option value="Health">Health</option>
+            <option value="Study">Study</option>
+            <option value="Finance">Finance</option>
+            <option value="Personal">Personal</option>
+          </select>
+        </label>
+        <label>
+          Search
+          <input id="searchInput" type="search" placeholder="Label or notes">
+        </label>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Category</th>
+              <th>Label</th>
+              <th>Value</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="entryTableBody"></tbody>
+        </table>
+      </div>
+      <p id="emptyState" class="empty-state">No entries yet. Add your first tracking row.</p>
+    </section>
+  </main>
+</body>
+</html>
